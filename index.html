@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Support 17bytes</title>
+<style>
+  :root {
+    --ink: #16181c;
+    --paper: #fafaf8;
+    --line: #e3e1da;
+    --accent: #2f6f4e;
+    --accent-dark: #234f38;
+    --muted: #6b6e73;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 32px 28px;
+  }
+  h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+  }
+  p.sub {
+    color: var(--muted);
+    margin: 0 0 28px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 18px 0 8px;
+  }
+  .amounts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .amounts button {
+    padding: 10px 0;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .amounts button.active {
+    border-color: var(--accent);
+    background: #eaf3ee;
+    color: var(--accent-dark);
+    font-weight: 600;
+  }
+  input[type="number"], input[type="text"], input[type="email"], input[type="tel"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pay-btn {
+    width: 100%;
+    margin-top: 26px;
+    padding: 13px 0;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .pay-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  #status {
+    margin-top: 16px;
+    font-size: 13px;
+    text-align: center;
+    min-height: 18px;
+  }
+  #status.error { color: #b3261e; }
+  #status.success { color: var(--accent-dark); }
+  .footnote {
+    margin-top: 22px;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Support 17bytes</h1>
+  <p class="sub">Your contribution helps keep 17bytes running. Payments are processed securely by Razorpay.</p>
+
+  <label>Choose an amount (INR)</label>
+  <div class="amounts" id="amountButtons">
+    <button type="button" data-amount="100">₹100</button>
+    <button type="button" data-amount="500">₹500</button>
+    <button type="button" data-amount="1000">₹1000</button>
+  </div>
+
+  <label for="customAmount">Or enter a custom amount</label>
+  <input type="number" id="customAmount" min="1" placeholder="e.g. 250" />
+
+  <label for="name">Name</label>
+  <input type="text" id="name" placeholder="Your name" />
+
+  <label for="email">Email</label>
+  <input type="email" id="email" placeholder="you@example.com" />
+
+  <label for="phone">Phone</label>
+  <input type="tel" id="phone" placeholder="10-digit mobile number" />
+
+  <button class="pay-btn" id="payBtn">Donate</button>
+  <div id="status"></div>
+
+  <p class="footnote">You'll be redirected to Razorpay's secure checkout to complete payment.</p>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+  const amountButtons = document.querySelectorAll('#amountButtons button');
+  const customAmount = document.getElementById('customAmount');
+  const payBtn = document.getElementById('payBtn');
+  const statusEl = document.getElementById('status');
+
+  let selectedAmount = 100;
+  amountButtons[0].classList.add('active');
+
+  amountButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      amountButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedAmount = parseInt(btn.dataset.amount, 10);
+      customAmount.value = '';
+    });
+  });
+
+  customAmount.addEventListener('input', () => {
+    amountButtons.forEach(b => b.classList.remove('active'));
+    selectedAmount = parseInt(customAmount.value, 10) || 0;
+  });
+
+  function setStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = type || '';
+  }
+
+  payBtn.addEventListener('click', async () => {
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+
+    if (!selectedAmount || selectedAmount < 1) {
+      setStatus('Please choose or enter a valid amount.', 'error');
+      return;
+    }
+    if (!name || !email || !phone) {
+      setStatus('Please fill in your name, email and phone.', 'error');
+      return;
+    }
+
+    payBtn.disabled = true;
+    setStatus('Creating order…');
+
+    try {
+      const orderRes = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: selectedAmount })
+      });
+      const order = await orderRes.json();
+
+      if (!orderRes.ok) {
+        throw new Error(order.error || 'Could not create order');
+      }
+
+      const options = {
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: '17bytes',
+        description: 'Donation to 17bytes',
+        order_id: order.id,
+        prefill: { name, email, contact: phone },
+        theme: { color: '#2f6f4e' },
+        handler: async function (response) {
+          setStatus('Verifying payment…');
+          try {
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(response)
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.verified) {
+              setStatus('Thank you! Your donation was received.', 'success');
+            } else {
+              setStatus('Payment could not be verified. If money was deducted, contact support.', 'error');
+            }
+          } catch (e) {
+            setStatus('Verification failed. If money was deducted, contact support.', 'error');
+          } finally {
+            payBtn.disabled = false;
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setStatus('Payment cancelled.', 'error');
+            payBtn.disabled = false;
+          }
+        }
+      };
+
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', function (resp) {
+        setStatus('Payment failed: ' + (resp.error && resp.error.description ? resp.error.description : 'Unknown error'), 'error');
+        payBtn.disabled = false;
+      });
+      rzp.open();
+    } catch (err) {
+      setStatus(err.message || 'Something went wrong. Please try again.', 'error');
+      payBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
