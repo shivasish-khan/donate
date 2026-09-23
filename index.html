@@ -189,7 +189,19 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: selectedAmount })
       });
-      const order = await orderRes.json();
+
+      const rawText = await orderRes.text();
+      let order;
+      try {
+        order = JSON.parse(rawText);
+      } catch (parseErr) {
+        console.error('Non-JSON response from /api/create-order:', rawText);
+        throw new Error(
+          orderRes.status === 404
+            ? 'API route not found (404). The functions folder may not be deployed correctly.'
+            : `Server returned an unexpected response (status ${orderRes.status}). Check the browser console for details.`
+        );
+      }
 
       if (!orderRes.ok) {
         throw new Error(order.error || 'Could not create order');
@@ -212,7 +224,14 @@
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(response)
             });
-            const verifyData = await verifyRes.json();
+            const verifyRawText = await verifyRes.text();
+            let verifyData;
+            try {
+              verifyData = JSON.parse(verifyRawText);
+            } catch {
+              console.error('Non-JSON response from /api/verify-payment:', verifyRawText);
+              throw new Error('Verification endpoint returned an unexpected response.');
+            }
             if (verifyRes.ok && verifyData.verified) {
               setStatus('Thank you! Your donation was received.', 'success');
             } else {
