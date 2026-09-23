@@ -62,3 +62,8 @@ function jsonResponse(data, status = 200) {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+// Lets you sanity-check in a browser that the function is deployed at all.
+export async function onRequestGet() {
+  return jsonResponse({ message: "This endpoint only accepts POST requests." }, 405);
+}
